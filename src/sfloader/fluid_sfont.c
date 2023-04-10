@@ -45,10 +45,13 @@ fluid_long_long_t default_ftell(void *handle)
     return FLUID_FTELL((FILE *)handle);
 }
 
-#ifdef _WIN32
+#ifndef PRIi64
+# define FLUID_CUSTOM_PRI
+# ifdef _WIN32
     #define PRIi64 "%I64d"
-#else
+# else
     #define PRIi64 "%lld"
+# endif
 #endif
 
 int safe_fread(void *buf, fluid_long_long_t count, void *fd)
@@ -81,7 +84,10 @@ int safe_fseek(void *fd, fluid_long_long_t ofs, int whence)
     return FLUID_OK;
 }
 
+#ifdef FLUID_CUSTOM_PRI
 #undef PRIi64
+#undef FLUID_CUSTOM_PRI
+#endif
 
 /**
  * Creates a new SoundFont loader.
