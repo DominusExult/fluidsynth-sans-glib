@@ -29,8 +29,6 @@
 #define GETOPT_SUPPORT 1
 #endif
 
-#include "fluid_lash.h"
-
 #ifdef SYSTEMD_SUPPORT
 #include <systemd/sd-daemon.h>
 #endif
@@ -48,6 +46,9 @@ void print_help(fluid_settings_t *settings);
 void print_welcome(void);
 void print_configure(void);
 void fluid_wasapi_device_enumerate(void);
+#ifdef _WIN32
+static char* win32_ansi_to_utf8(const char* ansi_null_terminated_string);
+#endif
 
 /*
  * the globals
@@ -122,16 +123,25 @@ int process_o_cmd_line_option(fluid_settings_t *settings, char *optarg)
         }
 
         break;
-
-    case FLUID_STR_TYPE:
-        if(fluid_settings_setstr(settings, optarg, val) != FLUID_OK)
+        
+    case FLUID_STR_TYPE: {
+        char *u8_val = val;
+#if defined(_WIN32)
+        u8_val = win32_ansi_to_utf8(val);
+#endif
+        if(fluid_settings_setstr(settings, optarg, u8_val) != FLUID_OK)
         {
             fprintf(stderr, "Failed to set string parameter '%s'\n", optarg);
+#if defined(_WIN32)
+            free(u8_val);
+#endif
             return FLUID_FAILED;
         }
-
+#if defined(_WIN32)
+        free(u8_val);
+#endif
         break;
-
+    }
     default:
         fprintf(stderr, "Setting parameter '%s' not found\n", optarg);
         return FLUID_FAILED;
@@ -392,12 +402,12 @@ int main(int argc, char **argv)
     int dump = 0;
     int fast_render = 0;
     static const char optchars[] = "a:C:c:dE:f:F:G:g:hijK:L:lm:nO:o:p:QqR:r:sT:Vvz:";
-#ifdef HAVE_LASH
-    int connect_lash = 1;
-    int enabled_lash = 0;		/* set to TRUE if lash gets enabled */
-    fluid_lash_args_t *lash_args;
 
-    lash_args = fluid_lash_extract_args(&argc, &argv);
+#ifdef _WIN32
+    // console output will be utf-8
+    SetConsoleOutputCP(CP_UTF8);
+    // console input, too
+    SetConsoleCP(CP_UTF8);
 #endif
 
 #if SDL2_SUPPORT
@@ -653,9 +663,7 @@ int main(int argc, char **argv)
             break;
 
         case 'l':			/* disable LASH */
-#ifdef HAVE_LASH
-            connect_lash = 0;
-#endif
+            // lash support removed in 2.4.0, NOOP
             break;
 
         case 'm':
@@ -851,17 +859,6 @@ int main(int argc, char **argv)
 
 #ifdef _WIN32
     SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
-#endif
-
-#ifdef HAVE_LASH
-
-    /* connect to the lash server */
-    if(connect_lash)
-    {
-        enabled_lash = fluid_lash_connect(lash_args);
-        fluid_settings_setint(settings, "lash.enable", enabled_lash ? 1 : 0);
-    }
-
 #endif
 
     /* The 'groups' setting is relevant for LADSPA operation and channel mapping
@@ -1098,15 +1095,6 @@ int main(int argc, char **argv)
 
 #endif
 
-#ifdef HAVE_LASH
-
-    if(enabled_lash)
-    {
-        fluid_lash_create_thread(synth);
-    }
-
-#endif
-
     /* fast rendering audio file, if requested */
     if(fast_render)
     {
@@ -1285,10 +1273,6 @@ print_help(fluid_settings_t *settings)
            "    Attempt to connect the jack outputs to the physical ports\n");
     printf(" -K, --midi-channels=[num]\n"
            "    The number of midi channels [default = 16]\n");
-#ifdef HAVE_LASH
-    printf(" -l, --disable-lash\n"
-           "    Don't connect to LASH server\n");
-#endif
     printf(" -L, --audio-channels=[num]\n"
            "    The number of stereo audio channels [default = 1]\n");
     printf(" -m, --midi-driver=[label]\n"

@@ -223,7 +223,7 @@ void fluid_synth_settings(fluid_settings_t *settings)
 
     fluid_settings_register_int(settings, "synth.polyphony", 256, 1, 65535, 0);
     fluid_settings_register_int(settings, "synth.midi-channels", 16, 16, 256, 0);
-    fluid_settings_register_num(settings, "synth.gain", 0.2, 0.0, 10.0, 0);
+    fluid_settings_register_num(settings, "synth.gain", 0.6, 0.0, 10.0, 0);
     fluid_settings_register_int(settings, "synth.audio-channels", 1, 1, 128, 0);
     fluid_settings_register_int(settings, "synth.audio-groups", 1, 1, 128, 0);
     fluid_settings_register_int(settings, "synth.effects-channels", 2, 2, 2, 0);
@@ -1829,6 +1829,10 @@ fluid_synth_cc_LOCAL(fluid_synth_t *synth, int channum, int num)
                 if(nrpn_select < GEN_LAST)
                 {
                     float val = fluid_gen_scale_nrpn(nrpn_select, data);
+                    if(synth->verbose)
+                    {
+                        FLUID_LOG(FLUID_INFO, "NRPN\t%d\t%d\t%d\t%f", channum, nrpn_select, data, val);
+                    }
                     fluid_synth_set_gen_LOCAL(synth, channum, nrpn_select, val);
                 }
 
@@ -2051,8 +2055,8 @@ fluid_synth_sysex(fluid_synth_t *synth, const char *data, int len,
                 || data[3] == MIDI_SYSEX_GM2_ON))
         {
             int result;
-            synth->bank_select = FLUID_BANK_STYLE_GM;
             fluid_synth_api_enter(synth);
+            synth->bank_select = FLUID_BANK_STYLE_GM;
             result = fluid_synth_system_reset_LOCAL(synth);
             FLUID_API_RETURN(result);
         }
@@ -6847,15 +6851,30 @@ fluid_synth_release_voice_on_same_note_LOCAL(fluid_synth_t *synth, int chan,
                 && (fluid_voice_get_key(voice) == key)
                 && (fluid_voice_get_id(voice) != synth->noteid))
         {
+            enum fluid_midi_channel_type type = synth->channel[chan]->channel_type;
+
             /* Id of voices that was sustained by sostenuto */
             if(fluid_voice_is_sostenuto(voice))
             {
                 synth->storeid = fluid_voice_get_id(voice);
             }
 
-            /* Force the voice into release stage except if pedaling
-               (sostenuto or sustain) is active */
-            fluid_voice_noteoff(voice);
+            switch(type)
+            {
+                case CHANNEL_TYPE_DRUM:
+                    /* release the voice, this should make riding hi-hats or snares sound more
+                     * realistic (Discussion #1196) */
+                    fluid_voice_off(voice);
+                    break;
+                case CHANNEL_TYPE_MELODIC:
+                    /* Force the voice into release stage except if pedaling (sostenuto or sustain) is active.
+                     * This gives a more realistic sound to pianos and possibly other instruments (see PR #905). */
+                    fluid_voice_noteoff(voice);
+                    break;
+                default:
+                    FLUID_LOG(FLUID_ERR, "This should never happen: unknown channel type %d", (int)type);
+                    break;
+            }
         }
     }
 }
