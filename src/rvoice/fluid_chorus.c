@@ -248,6 +248,9 @@ struct _fluid_chorus_t
 -----------------------------------------------------------------------------*/
 static void set_sinus_frequency(sinus_modulator *mod,
                                 float freq, float sample_rate, float phase)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wambiguous-macro"
+
 {
     double w = (2.0 * M_PI) * freq / sample_rate;  /* step phase between each sinus wave sample (in radian) */
     double a; /* initial phase at which the sinus wave must begin (in radian) */
@@ -261,7 +264,7 @@ static void set_sinus_frequency(sinus_modulator *mod,
     mod->buffer1 = sin(a); /* y(n) = sin(initial phase) */
     mod->reset_buffer2 = sin((M_PI / 2.0) - w); /* reset value for PI/2 */
 }
-
+#pragma GCC diagnostic pop
 /*-----------------------------------------------------------------------------
  Gets current value of sinus modulator:
    y(n) = a1 . y(n-1)  -  y(n-2)
@@ -942,7 +945,7 @@ void fluid_chorus_processmix(fluid_chorus_t *chorus, const fluid_real_t *in,
     /* foreach sample, process output sample then input sample */
     for(sample_index = 0; sample_index < FLUID_BUFSIZE; sample_index++)
     {
-        fluid_real_t out; /* block output */
+        fluid_real_t out = 0.0; /* block output */
 
         d_out[0] = d_out[1] = 0.0f; /* clear stereo unit input */
 

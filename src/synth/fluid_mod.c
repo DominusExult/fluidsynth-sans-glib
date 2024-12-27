@@ -192,7 +192,7 @@ fluid_mod_get_amount(const fluid_mod_t *mod)
  * Get the transform type of a modulator.
  *
  * @param mod The modulator instance
- * @param type Transform type, see #fluid_mod_transforms
+ * @return type Transform type, see #fluid_mod_transforms
  */
 int
 fluid_mod_get_transform(fluid_mod_t *mod)
@@ -362,24 +362,26 @@ fluid_mod_transform_source_value(fluid_real_t val, unsigned char mod_flags, cons
      * (at least for unipolar) which makes sin() never get to 1.0 but to 0.98 which
      * is close enough.
      */
-    case FLUID_MOD_SIN | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE: /* custom sin(x) */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wambiguous-macro"
+    case (FLUID_MOD_SIN | FLUID_MOD_UNIPOLAR | FLUID_MOD_POSITIVE): /* custom sin(x) */
         val = FLUID_SIN((FLUID_M_PI / 2.0f * 0.87f) * val_norm);
         break;
 
-    case FLUID_MOD_SIN | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE: /* custom */
+    case (FLUID_MOD_SIN | FLUID_MOD_UNIPOLAR | FLUID_MOD_NEGATIVE): /* custom */
         val = FLUID_SIN((FLUID_M_PI / 2.0f * 0.87f) * (1.0f - val_norm));
         break;
 
-    case FLUID_MOD_SIN | FLUID_MOD_BIPOLAR | FLUID_MOD_POSITIVE: /* custom */
+    case (FLUID_MOD_SIN | FLUID_MOD_BIPOLAR | FLUID_MOD_POSITIVE): /* custom */
         val = (val_norm > 0.5f) ?  FLUID_SIN(FLUID_M_PI * (val_norm - 0.5f))
               : -FLUID_SIN(FLUID_M_PI * (0.5f - val_norm));
         break;
 
-    case FLUID_MOD_SIN | FLUID_MOD_BIPOLAR | FLUID_MOD_NEGATIVE: /* custom */
+    case (FLUID_MOD_SIN | FLUID_MOD_BIPOLAR | FLUID_MOD_NEGATIVE): /* custom */
         val = (val_norm > 0.5f) ? -FLUID_SIN(FLUID_M_PI * (val_norm - 0.5f))
               :  FLUID_SIN(FLUID_M_PI * (0.5f - val_norm));
         break;
-
+#pragma GCC diagnostic pop
     default:
         FLUID_LOG(FLUID_ERR, "Unknown modulator type '%d', disabling modulator.", mod_flags);
         val = 0.0f;

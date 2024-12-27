@@ -450,7 +450,7 @@ fluid_midi_file_read_tracklen(fluid_midi_file *mf)
         return FLUID_FAILED;
     }
 
-    mf->tracklen = fluid_getlength(length);
+    mf->tracklen = (int)fluid_getlength(length);
     mf->trackpos = 0;
     mf->eot = 0;
     return FLUID_OK;
@@ -555,7 +555,7 @@ fluid_midi_file_read_track(fluid_midi_file *mf, fluid_player_t *player, int num)
                 return FLUID_FAILED;
             }
 
-            skip = fluid_getlength(length);
+            skip = (int)fluid_getlength(length);
 
             /* fseek(mf->fp, skip, SEEK_CUR); */
             if(fluid_midi_file_skip(mf, skip) != FLUID_OK)

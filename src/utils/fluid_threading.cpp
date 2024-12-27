@@ -86,8 +86,14 @@ void _private_set(_private *priv,void *val)
 }
 unsigned _thread_get_id(void)
 {
-	std::hash<std::thread::id>h;
-	return h(std::this_thread::get_id());
+    std::hash<std::thread::id> h;
+    size_t hash_value = h(std::this_thread::get_id());
+    if (hash_value > UINT_MAX)
+    {
+        // Handle overflow by taking modulo
+        return static_cast<unsigned>(hash_value % (static_cast<size_t>(UINT_MAX) + 1));
+    }
+    return static_cast<unsigned>(hash_value);
 }
 void _thread_create(_thread *th,_thread_func_t func,void* data)
 {

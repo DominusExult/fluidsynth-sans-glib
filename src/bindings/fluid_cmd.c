@@ -429,7 +429,7 @@ int _shell_parse_argv(const char* s,int *c,char ***sv)
 	for(anch=0;;++tc)
 	{
 		if(strchr(s+anch,' ')==NULL)break;
-		anch=strchr(s+anch,' ')-s+1;
+		anch = (int)(strchr(s + anch, ' ') - s + 1);
 	}
 	if(s[0])++tc;
 	*sv=calloc((tc+1),sizeof(char*));
@@ -442,9 +442,9 @@ int _shell_parse_argv(const char* s,int *c,char ***sv)
 		}
 		else
 		{
-			int len=strchr(s+anch,' ')-s-anch;
-			tmp=malloc(len*sizeof(char));
-			strncpy(tmp,s+anch,len);tmp[len]=0;
+			int len = (int)(strchr(s + anch, ' ') - s - anch);
+            tmp = malloc((size_t)(len * sizeof(char)));
+            strncpy(tmp, s + anch, (size_t)len); tmp[len] = 0;
 		}
 		oflag=qflag||dflag;
 		if(tmp[0]=='"'&&!qflag)
@@ -460,13 +460,13 @@ int _shell_parse_argv(const char* s,int *c,char ***sv)
 		}
 		if(tmp[strlen(tmp)-1]=='\\'){dflag=1;tmp[strlen(tmp)-1]=0;}
 		else dflag=0;
-		ol=(*sv)[*c]?strlen((*sv)[*c]):0;
+		ol = (*sv)[*c] ? (int)strlen((*sv)[*c]) : 0;
 		(*sv)[*c]=realloc((*sv)[*c],(ol+strlen(tmp)+oflag)*sizeof(char));
 		if(!ol)(*sv)[*c][0]=0;
 		if(oflag)strcat((*sv)[*c]," ");
 		strcat((*sv)[*c],tmp);
 		free(tmp);
-		anch=strchr(s+anch,' ')-s+1;
+		anch = (int)(strchr(s + anch, ' ') - s + 1);
 	}
 	*sv=realloc(*sv,(*c+1)*sizeof(char*));
 	return 1;

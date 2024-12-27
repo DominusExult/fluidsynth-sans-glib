@@ -108,7 +108,7 @@ int _snprintf_c99(char *str, size_t size, const char *format, ...)
     va_end(args);
     r = ret;
     if (r >= (int)size)
-        r = size - 1;
+        r = (int)(size - 1);
     str[r]='\0';
     return ret;
 }
@@ -119,7 +119,7 @@ int _vsnprintf_c99(char *str, size_t size, const char *format, va_list ap)
     ret = vsnprintf(str, size, format, ap);
     r = ret;
     if (r >= (int)size)
-        r = size - 1;
+        r = (int)(size - 1);
     str[r]='\0';
     return ret;
 }
@@ -1094,9 +1094,7 @@ fluid_timer_run(void *data)
 {
     fluid_timer_t *timer;
     int count = 0;
-    int cont;
     long start;
-    long delay;
 
     timer = (fluid_timer_t *)data;
 
@@ -1105,23 +1103,47 @@ fluid_timer_run(void *data)
 
     while(timer->cont)
     {
-        cont = (*timer->callback)(timer->data, fluid_curtime() - start);
+        long cur_time = fluid_curtime();
+        long elapsed_long = cur_time - start;
+        long delay;
+        
+        if (elapsed_long < 0 || elapsed_long > UINT_MAX)
+        {
+            FLUID_LOG(FLUID_WARN, "Timer elapsed time out of range");
+            timer->cont = 0;
+            break;
+        }
+        
+        unsigned int elapsed = (unsigned int)elapsed_long;
+        long result = (*timer->callback)(timer->data, elapsed);
+        unsigned int cont;
+
+        if (result < 0 || result > UINT_MAX)
+        {
+            FLUID_LOG(FLUID_WARN, "Timer callback returned out of range value");
+            cont = 0;
+        }
+        else
+        {
+            cont = (unsigned int)result;
+        }
 
         count++;
 
-        if(!cont)
+        if(!cont) 
         {
             break;
         }
 
         /* to avoid incremental time errors, calculate the delay between
-           two callbacks bringing in the "absolute" time (count *
-           timer->msec) */
-        delay = (count * timer->msec) - (fluid_curtime() - start);
+           two callbacks bringing in the "absolute" time (count * timer->msec) */
+        long abs_time = (long)(count * timer->msec);
+        long cur_elapsed = fluid_curtime() - start;
+        delay = abs_time - cur_elapsed;
 
         if(delay > 0)
         {
-            fluid_msleep(delay);
+            fluid_msleep((unsigned int)delay);
         }
     }
 
@@ -1318,7 +1340,13 @@ fluid_istream_gets(fluid_istream_t in, char *buf, int len)
     while(--len > 0)
     {
 #ifndef _WIN32
-        n = read(in, &c, 1);
+        ssize_t bytes_read = read(in, &c, 1);
+        if (bytes_read < INT_MIN || bytes_read > INT_MAX)
+        {
+            FLUID_LOG(FLUID_ERR, "Read result out of range");
+            return FLUID_FAILED;
+        }
+        n = (int)bytes_read;
 
         if(n == -1)
         {
@@ -1408,7 +1436,13 @@ fluid_ostream_printf(fluid_ostream_t out, const char *format, ...)
     buf[4095] = 0;
 
 #ifndef _WIN32
-    return write(out, buf, FLUID_STRLEN(buf));
+    ssize_t bytes_written = write(out, buf, FLUID_STRLEN(buf));
+    if (bytes_written < INT_MIN || bytes_written > INT_MAX)
+    {
+        FLUID_LOG(FLUID_ERR, "Write result out of range");
+        return FLUID_FAILED;
+    }
+    return (int)bytes_written;
 #else
     {
         int retval;

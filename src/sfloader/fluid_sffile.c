@@ -373,7 +373,7 @@ SFData *fluid_sffile_open(const char *fname, const fluid_file_callbacks_t *fcbs)
         goto error_exit;
     }
 
-    sf->filesize = fsize;
+    sf->filesize = (unsigned int)fsize;
 
     if(fcbs->fseek(sf->sffd, 0, SEEK_SET) == FLUID_FAILED)
     {
@@ -601,7 +601,12 @@ static int load_header(SFData *sf)
         return FALSE;
     }
 
-    sf->hydrapos = sf->fcbs->ftell(sf->sffd);
+    fluid_long_long_t pos = sf->fcbs->ftell(sf->sffd);
+    if (pos < 0 || pos > UINT_MAX) {
+        FLUID_LOG(FLUID_ERR, "File position out of range");
+        return FLUID_FAILED;
+    }
+    sf->hydrapos = (unsigned int)pos;
     sf->hydrasize = chunk.size;
 
     return TRUE;
@@ -788,7 +793,12 @@ static int process_sdta(SFData *sf, unsigned int size)
     }
 
     /* sample data follows */
-    sf->samplepos = sf->fcbs->ftell(sf->sffd);
+    fluid_long_long_t pos = sf->fcbs->ftell(sf->sffd);
+    if (pos < 0 || pos > UINT_MAX) {
+        FLUID_LOG(FLUID_ERR, "Sample position out of range");
+        return FLUID_FAILED;
+    }
+    sf->samplepos = (unsigned int)pos;
 
     /* used to check validity of sample headers */
     sf->samplesize = chunk.size;
@@ -831,7 +841,12 @@ static int process_sdta(SFData *sf, unsigned int size)
                 }
 
                 /* sample data24 follows */
-                sf->sample24pos = sf->fcbs->ftell(sf->sffd);
+                fluid_long_long_t pos = sf->fcbs->ftell(sf->sffd);
+                if (pos < 0 || pos > UINT_MAX) {
+                    FLUID_LOG(FLUID_ERR, "24-bit sample position out of range");
+                    return FLUID_FAILED;
+                }
+                sf->sample24pos = (unsigned int)pos;
                 sf->sample24size = sm24size;
             }
         }
@@ -1285,7 +1300,7 @@ int load_pgen(SFData *sf, int size)
     SFZone *zone;
     SFGen *g;
     SFPreset *preset;
-    SFGenAmount genval;
+    SFGenAmount genval = {0};
     unsigned short genid;
     int level, skip, drop, discarded;
 
@@ -1786,7 +1801,7 @@ int load_igen(SFData *sf, int size)
     SFZone *zone;
     SFGen *g;
     SFInst *inst;
-    SFGenAmount genval;
+    SFGenAmount genval = {0};
     unsigned short genid;
     int level, skip, drop, discarded;
 
@@ -2249,7 +2264,7 @@ static int fluid_sffile_read_wav(SFData *sf, unsigned int start, unsigned int en
     }
 
     /* If this machine is big endian, byte swap the 16 bit samples */
-    if(FLUID_IS_BIG_ENDIAN)
+#if FLUID_IS_BIG_ENDIAN
     {
         unsigned int i;
 
@@ -2258,6 +2273,7 @@ static int fluid_sffile_read_wav(SFData *sf, unsigned int start, unsigned int en
             loaded_data[i] = FLUID_LE16TOH(loaded_data[i]);
         }
     }
+#endif
 
     *data = loaded_data;
 

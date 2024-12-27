@@ -7717,7 +7717,7 @@ static void fluid_synth_process_awe32_nrpn_LOCAL(fluid_synth_t *synth, int chan,
 
     enum fluid_gen_type sf2_gen = awe32_to_sf2_gen[gen];
     int is_realtime = FALSE, i;
-    fluid_real_t converted_sf2_generator_value, q;
+    fluid_real_t converted_sf2_generator_value, q = 0.0;
 
     // The AWE32 NRPN docs say that a value of 8192 is considered to be the middle, i.e. zero.
     // However, it looks like for those generators which work in range [0,127], the AWE32 only inspects the DATA_LSB, i.e. and not doing this subtraction. Found while investigating Uplift.mid.

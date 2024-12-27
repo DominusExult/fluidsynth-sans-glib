@@ -22,6 +22,11 @@
 #include "fluid_sys.h"
 #include "fluid_conv_tables.inc.h"
 
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma GCC diagnostic ignored "-Wambiguous-macro"
+#endif
+
 /*
  * Converts absolute cents to Hertz
  * 

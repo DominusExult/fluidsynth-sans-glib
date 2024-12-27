@@ -427,6 +427,9 @@ typedef struct
 -----------------------------------------------------------------------------*/
 static void set_mod_frequency(sinus_modulator *mod,
                               float freq, float sample_rate, float phase)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wambiguous-macro"
+
 {
     fluid_real_t w = 2 * FLUID_M_PI * freq / sample_rate; /* initial angle */
     fluid_real_t a;
@@ -439,7 +442,7 @@ static void set_mod_frequency(sinus_modulator *mod,
     mod->buffer1 = FLUID_SIN(a); /* y(n) = sin(initial phase) */
     mod->reset_buffer2 = FLUID_SIN(FLUID_M_PI / 2 - w); /* reset value for PI/2 */
 }
-
+#pragma GCC diagnostic pop
 /*-----------------------------------------------------------------------------
  Gets current value of sinus modulator:
    y(n) = a1 . y(n-1)  -  y(n-2)
@@ -679,8 +682,11 @@ static void update_rev_time_damping(fluid_late *late,
                                     sample_period); /* E2 */
             /* gi = f(roomsize, gi_max, gi_min) */
             gi_tmp = gi_min + roomsize * (gi_max - gi_min);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wambiguous-macro"
             /* Computes T60DC from gi using inverse of relation E2.*/
             dc_rev_time = -3 * FLUID_M_LN10 * delay_length * sample_period / FLUID_LOGF(gi_tmp);
+#pragma GCC diagnostic pop
         }
 #endif /* ROOMSIZE_RESPONSE_LINEAR */
         /*--------------------------------------------

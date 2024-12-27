@@ -268,8 +268,11 @@ fluid_iir_filter_calculate_coefficients(fluid_iir_filter_t *iir_filter,
          * into account for both significant frequency relocation and for
          * bandwidth readjustment'. */
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wambiguous-macro"
         fluid_real_t omega = (fluid_real_t)(2.0 * M_PI) *
                                             (iir_filter->last_fres / output_rate);
+#pragma GCC diagnostic pop
         fluid_real_t sin_coeff = FLUID_SIN(omega);
         fluid_real_t cos_coeff = FLUID_COS(omega);
         fluid_real_t alpha_coeff = sin_coeff / (2.0f * iir_filter->last_q);

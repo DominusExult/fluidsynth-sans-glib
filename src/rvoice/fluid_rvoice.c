@@ -626,7 +626,10 @@ fluid_rvoice_noteoff_LOCAL(fluid_rvoice_t *voice, unsigned int min_ticks)
         {
             fluid_real_t lfo = fluid_lfo_get_val(&voice->envlfo.modlfo) * -voice->envlfo.modlfo_to_vol;
             fluid_real_t amp = fluid_adsr_env_get_val(&voice->envlfo.volenv) * fluid_cb2amp(lfo);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wambiguous-macro"
             fluid_real_t env_value = - (((-200.f / FLUID_M_LN10) * FLUID_LOGF(amp) - lfo) / FLUID_PEAK_ATTENUATION - 1);
+#pragma GCC diagnostic pop
             fluid_clip(env_value, 0.0f, 1.0f);
             fluid_adsr_env_set_val(&voice->envlfo.volenv, env_value);
         }
