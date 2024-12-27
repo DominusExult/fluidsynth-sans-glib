@@ -45,7 +45,7 @@ enum fluid_loop
 {
     FLUID_UNLOOPED = 0,
     FLUID_LOOP_DURING_RELEASE = 1,
-    FLUID_NOTUSED = 2,
+    FLUID_START_ON_RELEASE = 2, /* this is a looping mode introduced by Polyphone, see #1398 for more info */
     FLUID_LOOP_UNTIL_RELEASE = 3
 };
 
@@ -200,10 +200,10 @@ DECLARE_FLUID_RVOICE_FUNCTION(fluid_rvoice_set_sample);
 
 /* defined in fluid_rvoice_dsp.c */
 void fluid_rvoice_dsp_config(void);
-int fluid_rvoice_dsp_interpolate_none(fluid_rvoice_dsp_t *voice, fluid_real_t *FLUID_RESTRICT dsp_buf, int is_looping);
-int fluid_rvoice_dsp_interpolate_linear(fluid_rvoice_dsp_t *voice, fluid_real_t *FLUID_RESTRICT dsp_buf, int is_looping);
-int fluid_rvoice_dsp_interpolate_4th_order(fluid_rvoice_dsp_t *voice, fluid_real_t *FLUID_RESTRICT dsp_buf, int is_looping);
-int fluid_rvoice_dsp_interpolate_7th_order(fluid_rvoice_dsp_t *voice, fluid_real_t *FLUID_RESTRICT dsp_buf, int is_looping);
+int fluid_rvoice_dsp_interpolate_none(fluid_rvoice_t *voice, fluid_real_t *FLUID_RESTRICT dsp_buf, int is_looping);
+int fluid_rvoice_dsp_interpolate_linear(fluid_rvoice_t *voice, fluid_real_t *FLUID_RESTRICT dsp_buf, int is_looping);
+int fluid_rvoice_dsp_interpolate_4th_order(fluid_rvoice_t *voice, fluid_real_t *FLUID_RESTRICT dsp_buf, int is_looping);
+int fluid_rvoice_dsp_interpolate_7th_order(fluid_rvoice_t *voice, fluid_real_t *FLUID_RESTRICT dsp_buf, int is_looping);
 
 
 /*

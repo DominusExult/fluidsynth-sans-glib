@@ -1,6 +1,6 @@
 # FluidSynth - A Software Synthesizer
 #
-# Copyright (C) 2003-2023 Peter Hanappe and others.
+# Copyright (C) 2003-2024 Peter Hanappe and others.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
@@ -46,10 +46,10 @@ set ( PACKAGE "fluidsynth" )
 
 # FluidSynth package version
 set ( FLUIDSYNTH_VERSION_MAJOR 2 )
-set ( FLUIDSYNTH_VERSION_MINOR 3 )
-set ( FLUIDSYNTH_VERSION_MICRO 5 )
+set ( FLUIDSYNTH_VERSION_MINOR 4 )
+set ( FLUIDSYNTH_VERSION_MICRO 1 )
 set ( VERSION "${FLUIDSYNTH_VERSION_MAJOR}.${FLUIDSYNTH_VERSION_MINOR}.${FLUIDSYNTH_VERSION_MICRO}" )
-set ( FLUIDSYNTH_VERSION "\"${VERSION}\"" )
+set ( FLUIDSYNTH_VERSION ${VERSION} )
 
 # libfluidsynth - Library version
 # *** NOTICE ***
@@ -61,8 +61,8 @@ set ( FLUIDSYNTH_VERSION "\"${VERSION}\"" )
 # if any interfaces have been removed/changed (compatibility broken): AGE=0
 # This is not exactly the same algorithm as the libtool one, but the results are the same.
 set ( LIB_VERSION_CURRENT 3 )
-set ( LIB_VERSION_AGE 2 )
-set ( LIB_VERSION_REVISION 3 )
+set ( LIB_VERSION_AGE 3 )
+set ( LIB_VERSION_REVISION 1 )
 set ( LIB_VERSION_INFO
       "${LIB_VERSION_CURRENT}.${LIB_VERSION_AGE}.${LIB_VERSION_REVISION}" )
 
@@ -76,6 +76,7 @@ option ( enable-trap-on-fpe "enable SIGFPE trap on Floating Point Exceptions" of
 option ( enable-ubsan "compile and link against UBSan (for debugging fluidsynth internals)" off )
 
 # Options enabled by default
+option ( enable-alsa "compile ALSA support (if it is available)" on )
 option ( enable-aufile "compile support for sound file output" on )
 option ( BUILD_SHARED_LIBS "Build a shared object or DLL" on )
 option ( enable-dbus "compile DBUS support (if it is available)" on )
@@ -99,12 +100,9 @@ option ( enable-pipewire "compile PipeWire support (if it is available)" on )
 option ( enable-readline "compile readline lib line editing (if it is available)" on )
 option ( enable-threads "enable multi-threading support (such as parallel voice synthesis)" on )
 option ( enable-openmp "enable OpenMP support (parallelization of soundfont decoding, vectorization of voice mixing, etc.)" on )
+option ( enable-unicode "enable UNICODE build for Windows" on )
 
 # Platform specific options
-if ( CMAKE_SYSTEM MATCHES "Linux|FreeBSD|DragonFly" )
-    option ( enable-alsa "compile ALSA support (if it is available)" on )
-endif ( CMAKE_SYSTEM MATCHES "Linux|FreeBSD|DragonFly" )
-
 if ( CMAKE_SYSTEM MATCHES "Linux" )
     option ( enable-systemd "compile systemd support (if it is available)" on )
 endif ( CMAKE_SYSTEM MATCHES "Linux" )
@@ -185,7 +183,7 @@ if ( NOT HAVE_LONG_LONG AND NOT MSVC)
     message ( FATAL_ERROR "Your compiler does not support intrinsic type 'long long'. Unable to compile fluidsynth." )
 endif ()
 
-include ( CMakePrintHelpers ) # for cmake_print_properties() and cmake_print_variables() 
+include ( CMakePrintHelpers ) # for cmake_print_properties() and cmake_print_variables()
 include ( TestInline )
 include ( TestVLA )
 include ( TestBigEndian )
@@ -303,7 +301,9 @@ if ( WIN32 OR CYGWIN )
     endif()
   endif ()
   message ( STATUS "Targeting Windows Version ${windows-version}" )
-  add_definitions ( -D _UNICODE -D UNICODE )
+  if ( enable-unicode )
+    add_definitions ( -D _UNICODE -D UNICODE )
+  endif ()
   add_definitions ( -D _WIN32_WINNT=${windows-version} )
   add_definitions ( -D WINVER=${windows-version} )
   list ( APPEND CMAKE_REQUIRED_DEFINITIONS "-DWINVER=${windows-version}" )
@@ -346,7 +346,7 @@ if ( WIN32 )
   set ( LIBFLUID_CPPFLAGS "-DFLUIDSYNTH_DLL_EXPORTS" )
   set ( FLUID_CPPFLAGS "-DFLUIDSYNTH_NOT_A_DLL" )
   if  ( NOT MSVC )
-    # only set debug postfix if not MSVS building
+    # only set debug postfix if not MSVC building
     set ( CMAKE_DEBUG_POSTFIX "_debug" )
   endif ( NOT MSVC )
 
@@ -451,9 +451,9 @@ if ( enable-profiling )
     elseif ( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
       set ( OPT_FLAGS "" )
     endif ( )
-    
+
     set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OPT_FLAGS}" )
-    
+
     find_program( CLANG_TIDY
                 NAMES "clang-tidy"
                 DOC "Path to clang-tidy executable" )
@@ -544,30 +544,42 @@ endif ()
 unset ( LIBSNDFILE_SUPPORT CACHE )
 unset ( LIBSNDFILE_HASVORBIS CACHE )
 if ( enable-libsndfile )
-    find_package ( SndFile ${LIBSNDFILE_MINIMUM_VERSION} )
+    #set(CMAKE_FIND_DEBUG_MODE ON)
+    find_package ( SndFile ${LIBSNDFILE_MINIMUM_VERSION} QUIET )
+    if ( NOT SndFile_FOUND )
+        # Not all distros have switched to libsndfile's cmake based build system, see #1445.
+        # Therefore, discover sndfile via the legacy pkg-config magic.
+        find_package ( SndFileLegacy )
+    endif ()
     set ( LIBSNDFILE_SUPPORT ${SndFile_FOUND} )
     if ( LIBSNDFILE_SUPPORT )
+        message ( STATUS "Found libSndFile: ${SndFile_VERSION}" )
+        #cmake_print_properties(TARGETS SndFile::sndfile PROPERTIES LOCATION INTERFACE_INCLUDE_DIRECTORIES IMPORTED_CONFIGURATIONS)
+        cmake_print_variables(SndFile_WITH_EXTERNAL_LIBS SndFile_WITH_MPEG)
         list( APPEND PC_REQUIRES_PRIV "sndfile")
         if ( SndFile_WITH_EXTERNAL_LIBS )
             set ( LIBSNDFILE_HASVORBIS 1 )
         else (SndFile_WITH_EXTERNAL_LIBS)
             message ( NOTICE "Seems like libsndfile was compiled without OGG/Vorbis support." )
         endif (SndFile_WITH_EXTERNAL_LIBS)
+    else ( LIBSNDFILE_SUPPORT )
+        message( STATUS "Could NOT find SndFile (Set SndFile_DIR to the directory containing its CMake config) (Required is at least version ${LIBSNDFILE_MINIMUM_VERSION})" )
     endif ( LIBSNDFILE_SUPPORT )
+    #set(CMAKE_FIND_DEBUG_MODE OFF)
 endif ( enable-libsndfile )
 
 unset ( PULSE_SUPPORT CACHE )
 if ( enable-pulseaudio )
-    find_package ( PulseAudio ${PULSEAUDIO_MINIMUM_VERSION} )
+    find_package ( PulseAudio ${PULSEAUDIO_MINIMUM_VERSION} QUIET )
     # Upstream config does not search for pulse-simple
-    find_library ( PULSEAUDIO_SIMPLE_LIBRARY NAMES "pulse-simple" )
+    find_library ( PULSEAUDIO_SIMPLE_LIBRARY NAMES "pulse-simple" QUIET )
     if ( PULSEAUDIO_FOUND AND PULSEAUDIO_SIMPLE_LIBRARY )
         set ( PULSE_SUPPORT TRUE )
         set ( PULSEAUDIO_LIBRARIES ${PULSEAUDIO_SIMPLE_LIBRARY} ${PULSEAUDIO_LIBRARY} )
         message ( STATUS "Found PulseAudio: ${PULSEAUDIO_LIBRARIES}" )
         list( APPEND PC_REQUIRES_PRIV "libpulse-simple")
     else ( PULSEAUDIO_FOUND AND PULSEAUDIO_SIMPLE_LIBRARY )
-        message( STATUS "Could NOT find PulseAudio (Set PulseAudio_DIR to the directory containing its CMake config)" )
+        message( STATUS "Could NOT find PulseAudio (Set PulseAudio_DIR to the directory containing its CMake config) (Required is at least version ${PULSEAUDIO_MINIMUM_VERSION})" )
     endif ( PULSEAUDIO_FOUND AND PULSEAUDIO_SIMPLE_LIBRARY )
 endif ( enable-pulseaudio )
 
@@ -749,7 +761,8 @@ set(TEST_SOUNDFONT "${FluidSynth_SOURCE_DIR}/sf2/VintageDreamsWaves-v2.sf2")
 set(TEST_SOUNDFONT_UTF8_1 "${FluidSynth_SOURCE_DIR}/sf2/\\xE2\\x96\\xA0VintageDreamsWaves-v2\\xE2\\x96\\xA0.sf2")
 set(TEST_SOUNDFONT_UTF8_2 "${FluidSynth_SOURCE_DIR}/sf2/VìntàgèDrèàmsWàvès-v2.sf2")
 set(TEST_SOUNDFONT_SF3 "${FluidSynth_SOURCE_DIR}/sf2/VintageDreamsWaves-v2.sf3")
-set(TEST_MIDI_UTF8 "${FluidSynth_SOURCE_DIR}/test/èmpty.mid")
+set(TEST_MIDI_UTF8 "${FluidSynth_SOURCE_DIR}/test/ⓉⒺⓈⓉ.mid")
+set(TEST_WAV_UTF8 "${FluidSynth_BINARY_DIR}/test/ⓉⒺⓈⓉ.wav")
 
 # Make sure to link against libm before checking for math functions below
 set ( CMAKE_REQUIRED_LIBRARIES "${LIBFLUID_LIBS};${WINDOWS_LIBS}" )
