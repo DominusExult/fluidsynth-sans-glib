@@ -9,8 +9,13 @@ if ( WIN32 )
   set (DEFAULT_SOUNDFONT "C:\\\\ProgramData\\\\soundfonts\\\\default.sf2" CACHE STRING
        "Default soundfont file")
 else ( WIN32 )
-  set (DEFAULT_SOUNDFONT "${CMAKE_INSTALL_FULL_DATADIR}/soundfonts/default.sf2" CACHE STRING
+  if ( ANDROID )
+    set (DEFAULT_SOUNDFONT "default.sf2" CACHE STRING
+         "Default soundfont file")
+  else ()
+    set (DEFAULT_SOUNDFONT "${CMAKE_INSTALL_FULL_DATADIR}/soundfonts/default.sf2" CACHE STRING
        "Default soundfont file")
+  endif ()
 endif ( WIN32 )
 mark_as_advanced (DEFAULT_SOUNDFONT)
 

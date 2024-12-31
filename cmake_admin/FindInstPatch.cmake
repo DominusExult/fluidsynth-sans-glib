@@ -59,7 +59,7 @@ else()
   if(NOT TARGET GLib2::gobject-2
      OR NOT TARGET GLib2::gthread-2
      OR NOT TARGET GLib2::glib-2)
-    find_package(GLib2 QUIET)
+#    find_package(GLib2 QUIET)
   endif()
   if(NOT TARGET SndFile::sndfile)
     find_package(SndFile QUIET)
