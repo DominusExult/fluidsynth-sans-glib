@@ -22,7 +22,7 @@
 
 
 /* Soundfont to load automatically in some use cases */
-#define DEFAULT_SOUNDFONT "/usr/local/share/soundfonts/default.sf2"
+#define DEFAULT_SOUNDFONT "default.sf2"
 
 /* Define to enable FPE checks */
 /* #undef FPE_CHECK */
