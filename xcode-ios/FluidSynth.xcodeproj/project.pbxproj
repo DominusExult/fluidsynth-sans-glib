@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8A754B532DA3DFA200474024 /* fluid_rvoice_dsp.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8A754B522DA3DFA200474024 /* fluid_rvoice_dsp.cpp */; };
 		8A9A01E929F3391F000AF341 /* fluid_threading.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8A9A01DD29F3391E000AF341 /* fluid_threading.cpp */; };
 		8A9A01EA29F3391F000AF341 /* fluid_hash.c in Sources */ = {isa = PBXBuildFile; fileRef = 8A9A01DE29F3391E000AF341 /* fluid_hash.c */; };
 		8A9A01EB29F3391F000AF341 /* fluid_sys.c in Sources */ = {isa = PBXBuildFile; fileRef = 8A9A01DF29F3391E000AF341 /* fluid_sys.c */; };
@@ -49,7 +50,6 @@
 		8A9A02A429F3DF52000AF341 /* gen_rvoice_dsp.c in Sources */ = {isa = PBXBuildFile; fileRef = 8A9A02A129F3DF52000AF341 /* gen_rvoice_dsp.c */; };
 		8A9A02A529F3DF52000AF341 /* make_tables.c in Sources */ = {isa = PBXBuildFile; fileRef = 8A9A02A229F3DF52000AF341 /* make_tables.c */; };
 		8A9A02A629F3DF52000AF341 /* gen_conv.c in Sources */ = {isa = PBXBuildFile; fileRef = 8A9A02A329F3DF52000AF341 /* gen_conv.c */; };
-		8A9A02BD29F3E24B000AF341 /* fluid_rvoice_dsp.c in Sources */ = {isa = PBXBuildFile; fileRef = 8A9A02BC29F3E24B000AF341 /* fluid_rvoice_dsp.c */; };
 		8A9A02BF29F3E265000AF341 /* fluid_conv.c in Sources */ = {isa = PBXBuildFile; fileRef = 8A9A02BE29F3E264000AF341 /* fluid_conv.c */; };
 /* End PBXBuildFile section */
 
@@ -64,6 +64,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		8A754B522DA3DFA200474024 /* fluid_rvoice_dsp.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = fluid_rvoice_dsp.cpp; path = ../src/rvoice/fluid_rvoice_dsp.cpp; sourceTree = SOURCE_ROOT; };
 		8A9A012E29F32EEF000AF341 /* libfluidsynth.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libfluidsynth.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A9A01DD29F3391E000AF341 /* fluid_threading.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = fluid_threading.cpp; path = ./../src/utils/fluid_threading.cpp; sourceTree = "<group>"; };
 		8A9A01DE29F3391E000AF341 /* fluid_hash.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = fluid_hash.c; path = ./../src/utils/fluid_hash.c; sourceTree = "<group>"; };
@@ -108,7 +109,6 @@
 		8A9A02A129F3DF52000AF341 /* gen_rvoice_dsp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = gen_rvoice_dsp.c; path = ./../src/gentables/gen_rvoice_dsp.c; sourceTree = "<group>"; };
 		8A9A02A229F3DF52000AF341 /* make_tables.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = make_tables.c; path = ./../src/gentables/make_tables.c; sourceTree = "<group>"; };
 		8A9A02A329F3DF52000AF341 /* gen_conv.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = gen_conv.c; path = ./../src/gentables/gen_conv.c; sourceTree = "<group>"; };
-		8A9A02BC29F3E24B000AF341 /* fluid_rvoice_dsp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = fluid_rvoice_dsp.c; path = ./../src/rvoice/fluid_rvoice_dsp.c; sourceTree = "<group>"; };
 		8A9A02BE29F3E264000AF341 /* fluid_conv.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = fluid_conv.c; path = ./../src/utils/fluid_conv.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -158,6 +158,7 @@
 				8A9A020629F3397F000AF341 /* fluid_iir_filter.c */,
 				8A9A020A29F3397F000AF341 /* fluid_lfo.c */,
 				8A9A01FD29F3397F000AF341 /* fluid_rev.c */,
+				8A754B522DA3DFA200474024 /* fluid_rvoice_dsp.cpp */,
 				8A9A01FC29F3397F000AF341 /* fluid_rvoice_event.c */,
 				8A9A020129F3397F000AF341 /* fluid_rvoice_mixer.c */,
 				8A9A02BE29F3E264000AF341 /* fluid_conv.c */,
@@ -169,7 +170,6 @@
 				8A9A01DE29F3391E000AF341 /* fluid_hash.c */,
 				8A9A01E229F3391E000AF341 /* fluid_list.c */,
 				8A9A01E829F3391F000AF341 /* fluid_ringbuffer.c */,
-				8A9A02BC29F3E24B000AF341 /* fluid_rvoice_dsp.c */,
 				8A9A01E129F3391E000AF341 /* fluid_settings.c */,
 				8A9A01DF29F3391E000AF341 /* fluid_sys.c */,
 				8A9A025229F33B18000AF341 /* fluid_rtkit.c */,
@@ -337,10 +337,10 @@
 				8A9A020E29F3397F000AF341 /* fluid_rvoice_event.c in Sources */,
 				8A9A01F829F3394C000AF341 /* fluid_sfont.c in Sources */,
 				8A9A01F929F3394C000AF341 /* fluid_defsfont.c in Sources */,
+				8A754B532DA3DFA200474024 /* fluid_rvoice_dsp.cpp in Sources */,
 				8A9A023B29F339D8000AF341 /* fluid_seqbind_notes.cpp in Sources */,
 				8A9A022C29F339AF000AF341 /* fluid_gen.c in Sources */,
 				8A9A01E929F3391F000AF341 /* fluid_threading.cpp in Sources */,
-				8A9A02BD29F3E24B000AF341 /* fluid_rvoice_dsp.c in Sources */,
 				8A9A022B29F339AF000AF341 /* fluid_tuning.c in Sources */,
 				8A9A024B29F33A29000AF341 /* fluid_adriver.c in Sources */,
 				8A9A021429F3397F000AF341 /* fluid_rvoice.c in Sources */,
