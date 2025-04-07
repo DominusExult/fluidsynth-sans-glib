@@ -1,6 +1,6 @@
 # FluidSynth - A Software Synthesizer
 #
-# Copyright (C) 2003-2024 Peter Hanappe and others.
+# Copyright (C) 2003-2025 Peter Hanappe and others.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
@@ -73,6 +73,10 @@ if ( SDL2_SUPPORT )
   set ( fluid_sdl2_SOURCES drivers/fluid_sdl2.c )
 endif ( SDL2_SUPPORT )
 
+if ( SDL3_SUPPORT )
+  set ( fluid_sdl3_SOURCES drivers/fluid_sdl3.c )
+endif ( SDL3_SUPPORT )
+
 if ( OSS_SUPPORT )
   set ( fluid_oss_SOURCES drivers/fluid_oss.c )
 endif ( OSS_SUPPORT )
@@ -135,13 +139,14 @@ set ( libfluidsynth_SOURCES
     rvoice/fluid_adsr_env.h
     rvoice/fluid_chorus.c
     rvoice/fluid_chorus.h
+    rvoice/fluid_iir_filter.cpp
     rvoice/fluid_iir_filter.c
     rvoice/fluid_iir_filter.h
     rvoice/fluid_lfo.c
     rvoice/fluid_lfo.h
     rvoice/fluid_rvoice.h
     rvoice/fluid_rvoice.c
-    rvoice/fluid_rvoice_dsp.c
+    rvoice/fluid_rvoice_dsp.cpp
     rvoice/fluid_rvoice_event.h
     rvoice/fluid_rvoice_event.c
     rvoice/fluid_rvoice_mixer.h
@@ -182,6 +187,12 @@ set ( libfluidsynth_SOURCES
     bindings/fluid_ladspa.c
     bindings/fluid_ladspa.h
 )
+if ( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU" )
+  set_source_files_properties(rvoice/fluid_iir_filter.cpp PROPERTIES COMPILE_FLAGS "-fno-math-errno -ffast-math")
+elseif ( CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" )
+  set_source_files_properties(rvoice/fluid_iir_filter.cpp PROPERTIES COMPILE_FLAGS "/fp:fast")
+endif ( )
+
 
 set ( public_HEADERS
     ${FluidSynth_SOURCE_DIR}/include/fluidsynth/audio.h
@@ -242,6 +253,7 @@ add_library ( libfluidsynth-OBJ OBJECT
     ${fluid_waveout_SOURCES}
     ${fluid_winmidi_SOURCES}
     ${fluid_sdl2_SOURCES}
+    ${fluid_sdl3_SOURCES}
     ${fluid_libinstpatch_SOURCES}
     ${libfluidsynth_SOURCES}
     ${public_HEADERS}
@@ -313,8 +325,6 @@ elseif ( WIN32 )
   set_target_properties ( libfluidsynth
     PROPERTIES
       PUBLIC_HEADER "${public_HEADERS}"
-      ARCHIVE_OUTPUT_NAME "fluidsynth"
-      PREFIX "lib"
       OUTPUT_NAME "fluidsynth-${LIB_VERSION_CURRENT}"
       VERSION ${LIB_VERSION_INFO}
       SOVERSION ${LIB_VERSION_CURRENT}
@@ -395,6 +405,10 @@ endif()
 if ( SDL2_SUPPORT )
     target_include_directories ( libfluidsynth-OBJ PRIVATE ${SDL2_INCLUDE_DIRS} )
     target_link_libraries ( libfluidsynth-OBJ PUBLIC ${SDL2_LIBRARIES} )
+endif()
+
+if ( SDL3_SUPPORT )
+    target_link_libraries ( libfluidsynth-OBJ PUBLIC SDL3::SDL3 )
 endif()
 
 if ( TARGET oboe::oboe AND OBOE_SUPPORT )
@@ -492,6 +506,10 @@ if ( SDL2_SUPPORT ) # because SDL_Init() etc.
     target_link_libraries ( fluidsynth PRIVATE ${SDL2_LIBRARIES} )
 endif()
 
+if ( SDL3_SUPPORT )
+    target_link_libraries ( fluidsynth PUBLIC SDL3::SDL3 )
+endif ( SDL3_SUPPORT )
+
 if ( TARGET PipeWire::PipeWire AND PIPEWIRE_SUPPORT ) # because pw_init() etc.
     target_link_libraries ( fluidsynth PRIVATE PipeWire::PipeWire )
 endif()
@@ -545,19 +563,13 @@ set (GENTAB_BDIR ${CMAKE_CURRENT_BINARY_DIR}/gentables)
 # To fix cross-compiling fluidsynth from Win32 to ARM (using vcpkg), we need to pass the current generator
 # on to the external project, otherwise (for some unknown reason) the target compiler will be used rather
 # than the host compiler.
-#
-# Some use-cases however cannot rely on this logic, therefore, FLUID_HOST_COMPILER can be specified to
-# force using a particular host compiler, see https://github.com/FluidSynth/fluidsynth/issues/1301
-if ( FLUID_HOST_COMPILER )
-  set ( EXPLICIT_HOST_COMPILER_STR "-DCMAKE_C_COMPILER=${FLUID_HOST_COMPILER}" )
-endif ()
 
 ExternalProject_Add(gentables
     DOWNLOAD_COMMAND ""
     SOURCE_DIR ${GENTAB_SDIR}
     BINARY_DIR ${GENTAB_BDIR}
     CONFIGURE_COMMAND
-        "${CMAKE_COMMAND}" -DCMAKE_VERBOSE_MAKEFILE=${CMAKE_VERBOSE_MAKEFILE} ${EXPLICIT_HOST_COMPILER_STR} -G "${CMAKE_GENERATOR}" -B "${GENTAB_BDIR}" "${GENTAB_SDIR}"
+        "${CMAKE_COMMAND}" -DCMAKE_VERBOSE_MAKEFILE=${CMAKE_VERBOSE_MAKEFILE} -G "${CMAKE_GENERATOR}" -B "${GENTAB_BDIR}" "${GENTAB_SDIR}"
     BUILD_COMMAND
         "${CMAKE_COMMAND}" --build "${GENTAB_BDIR}"
     INSTALL_COMMAND ${GENTAB_BDIR}/make_tables.exe "${FluidSynth_BINARY_DIR}/"

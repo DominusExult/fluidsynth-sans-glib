@@ -1,6 +1,6 @@
 # FluidSynth - A Software Synthesizer
 #
-# Copyright (C) 2003-2024 Peter Hanappe and others.
+# Copyright (C) 2003-2025 Peter Hanappe and others.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
@@ -47,7 +47,7 @@ set ( PACKAGE "fluidsynth" )
 # FluidSynth package version
 set ( FLUIDSYNTH_VERSION_MAJOR 2 )
 set ( FLUIDSYNTH_VERSION_MINOR 4 )
-set ( FLUIDSYNTH_VERSION_MICRO 1 )
+set ( FLUIDSYNTH_VERSION_MICRO 4 )
 set ( VERSION "${FLUIDSYNTH_VERSION_MAJOR}.${FLUIDSYNTH_VERSION_MINOR}.${FLUIDSYNTH_VERSION_MICRO}" )
 set ( FLUIDSYNTH_VERSION ${VERSION} )
 
@@ -62,7 +62,7 @@ set ( FLUIDSYNTH_VERSION ${VERSION} )
 # This is not exactly the same algorithm as the libtool one, but the results are the same.
 set ( LIB_VERSION_CURRENT 3 )
 set ( LIB_VERSION_AGE 3 )
-set ( LIB_VERSION_REVISION 1 )
+set ( LIB_VERSION_REVISION 4 )
 set ( LIB_VERSION_INFO
       "${LIB_VERSION_CURRENT}.${LIB_VERSION_AGE}.${LIB_VERSION_REVISION}" )
 
@@ -94,7 +94,8 @@ option ( enable-dsound "compile DirectSound support (if it is available)" on )
 option ( enable-wasapi "compile Windows WASAPI support (if it is available)" on )
 option ( enable-waveout "compile Windows WaveOut support (if it is available)" on )
 option ( enable-winmidi "compile Windows MIDI support (if it is available)" on )
-option ( enable-sdl2 "compile SDL2 audio support (if it is available)" on )
+option ( enable-sdl2 "compile SDL2 audio support (if it is available)" off )
+option ( enable-sdl3 "compile SDL3 audio support (if it is available)" on )
 option ( enable-pulseaudio "compile PulseAudio support (if it is available)" on )
 option ( enable-pipewire "compile PipeWire support (if it is available)" on )
 option ( enable-readline "compile readline lib line editing (if it is available)" on )
@@ -445,24 +446,26 @@ unset ( WITH_PROFILING CACHE )
 if ( enable-profiling )
     set ( WITH_PROFILING 1 )
     if ( CMAKE_C_COMPILER_ID STREQUAL "Clang" )
-      set ( OPT_FLAGS "-Rpass=loop-vectorize" ) # -Rpass-analysis=loop-vectorize" )
-    elseif ( CMAKE_C_COMPILER_ID STREQUAL "Intel" )
-      set ( OPT_FLAGS "-qopt-report=3" )
-    elseif ( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
-      set ( OPT_FLAGS "" )
-    endif ( )
+      set ( OPT_FLAGS "-Rpass=loop-vectorize -Rpass-analysis=loop-vectorize" )
+      find_program( CLANG_TIDY
+                    NAMES "clang-tidy"
+                    DOC "Path to clang-tidy executable" )
 
-    set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OPT_FLAGS}" )
-
-    find_program( CLANG_TIDY
-                NAMES "clang-tidy"
-                DOC "Path to clang-tidy executable" )
-
-    if ( CLANG_TIDY )
+      if ( CLANG_TIDY )
         message ( STATUS "Found clang-tidy at ${CLANG_TIDY}" )
         execute_process ( COMMAND ${CLANG_TIDY} "--version" )
         set ( CMAKE_C_CLANG_TIDY ${CLANG_TIDY} )
-    endif ( CLANG_TIDY )
+      endif ( CLANG_TIDY )
+    elseif ( CMAKE_C_COMPILER_ID STREQUAL "Intel" )
+      set ( OPT_FLAGS "-qopt-report=3" )
+    elseif ( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
+      set ( OPT_FLAGS "-fopt-info -fopt-info-vec-missed" )
+	elseif ( CMAKE_C_COMPILER_ID STREQUAL "MSVC" )
+	  set ( OPT_FLAGS "/Qvec-report:2" )
+    endif ( )
+
+    set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OPT_FLAGS}" )
+    set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OPT_FLAGS}" )
 
 endif ( enable-profiling )
 
@@ -665,6 +668,7 @@ endif ( enable-libinstpatch )
 
 unset ( SDL2_SUPPORT CACHE )
 if ( enable-sdl2 )
+    message ( WARNING "SDL2 support is deprecated and will be removed in fluidsynth 2.5.0! Pls. use sdl3.")
     find_package ( SDL2 QUIET )
     if ( SDL2_FOUND )
         if ( NOT DEFINED SDL2_VERSION )
@@ -682,6 +686,16 @@ if ( enable-sdl2 )
         message ( STATUS "Could NOT find SDL2 (Set SDL2_DIR to the directory containing its CMake config)" )
     endif ( SDL2_FOUND )
 endif ( enable-sdl2 )
+
+unset ( SDL3_SUPPORT CACHE )
+if ( enable-sdl3 )
+    find_package ( SDL3 QUIET CONFIG COMPONENTS SDL3 )
+    if ( SDL3_FOUND )
+        message ( STATUS "Found SDL3: ${SDL3_LIBRARIES} (version: ${SDL3_VERSION})" )
+        set ( SDL3_SUPPORT TRUE )
+        list ( APPEND PC_REQUIRES_PRIV "sdl3")
+    endif ( SDL3_FOUND )
+endif ( enable-sdl3 )
 
 unset ( OBOE_SUPPORT CACHE )
 if ( enable-oboe )
@@ -902,6 +916,9 @@ if ( UNIX )
     if ( DEFINED FLUID_DAEMON_ENV_FILE)
         configure_file ( fluidsynth.service.in
         ${FluidSynth_BINARY_DIR}/fluidsynth.service @ONLY )
+
+        configure_file ( fluidsynth.tmpfiles.in
+        ${FluidSynth_BINARY_DIR}/fluidsynth.tmpfiles @ONLY )
 
         configure_file ( fluidsynth.conf.in
         ${FluidSynth_BINARY_DIR}/fluidsynth.conf @ONLY )

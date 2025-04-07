@@ -181,7 +181,7 @@ Developers:
                     <li>gs: (default) CC0 becomes the bank number, CC32 is ignored.</li>
                     <li>gm: ignores CC0 and CC32 messages.</li>
                     <li>mma: bank is calculated as CC0*128+CC32.</li>
-                    <li>xg: If CC0 is equal to 120, 126, or 127 then channel is set to drum and the bank number is set to 128 (CC32 is ignored). Otherwise the channel is set to melodic and CC32 is the bank number. Note that you need fluidsynth &gt;=2.3.5 for this to work correctly, previous versions behaved incorrectly.</li>
+                    <li>xg: If CC0 is equal to 120, 126, or 127 then channel is set to drum mode and the bank number is set to [<code>128</code> (fluidsynth &lt;= 2.4.4) | <code>CC0</code> (fluidsynth &gt;=2.4.5)] and CC32 is ignored in this case. If the SoundFont does not provide a bank 120, 126 or 127, fluidsynth will fallback to default drum bank 128. If CC0 has a different value, the channel is set to melodic and CC32 becomes the bank number. Note that before fluidsynth 2.3.5 the logic for CC0 was broken.</li>
                 </ul>
             </desc>
         </setting>
@@ -193,6 +193,20 @@ Developers:
             <max>65535</max>
             <desc>
                 Sets the minimum note duration in milliseconds. This ensures that really short duration note events, such as percussion notes, have a better chance of sounding as intended. Set to 0 to disable this feature.</desc>
+        </setting>
+        <setting>
+            <name>note-cut</name>
+            <type>int</type>
+            <def>0</def>
+            <min>0</min>
+            <max>2</max>
+            <desc>
+                This setting specifies the behavior for releasing voices, if the same note is hit twice on the same channel. Early synthesizers like the Roland SC-55 and Microsoft Wavetable GS MIDI synthesizer (MSGS) are terminating notes abruptly that have already received a noteOff after receiving a noteOn for the same key. This behavior was presumably implemented to save polyphony in these systems. This setting was introduced in fluidsynth 2.4.3 and can be enabled to mimic this behavior, to esp. play back old tunes like Doom E1M1 more accurately. Please note that using a SoundFont which makes proper use of exclusive classes for esp. percussion instruments will yield a similar or better result. Also, this approach is generally preferable becuase it's portable among SF2 compliant synths and can be applied more fine-grained among instruments. This setting supports the following values:
+                <ul>
+                    <li>0: A regular noteOff is applied to the previous note, which is the default SF2 compliant behavior.</li>
+                    <li>1: Note-cut is only applied on drum MIDI channels (i.e. CHANNEL_TYPE_DRUM). Fluidsynth 2.4.0, 2.4.1, and 2.4.2 unconditionally used this mode.</li>
+                    <li>2: Note-cut is applied to both, drum and melodic MIDI channels (i.e. CHANNEL_TYPE_DRUM and CHANNEL_TYPE_MELODIC).</li>
+                </ul></desc>
         </setting>
         <setting>
             <name>overflow.age</name>
@@ -348,7 +362,7 @@ Developers:
             <max>100.0</max>
             <realtime/>
             <desc>
-                Sets the stereo spread of the reverb signal.</desc>
+                Sets the stereo spread of the reverb signal. A value of 0 indicates no stereo-separation causing the reverb to sound like a monophonic signal. A value of 1 indicates maximum separation between the uncorrelated left and right channels (note that reverb is still a monophonic effect). This subrange [0;1] is recommended for general usage. Values bigger than 1 increase (or exaggerate) the perception of the uncorrelated left and right signals. Otherwise, this setting should be considered as dimensionless quantity, with its maximum value existing for historical reasons. Please note that under some circumstances, values bigger than 1 may induce a feedback into the signal which can be perceived as unpleasant.</desc>
         </setting>
         <setting>
             <name>sample-rate</name>

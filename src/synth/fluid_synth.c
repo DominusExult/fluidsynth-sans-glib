@@ -256,6 +256,7 @@ void fluid_synth_settings(fluid_settings_t *settings)
     fluid_settings_add_option(settings, "synth.midi-bank-select", "mma");
 
     fluid_settings_register_int(settings, "synth.dynamic-sample-loading", 0, 0, 1, FLUID_HINT_TOGGLED);
+    fluid_settings_register_int(settings, "synth.note-cut", 0, 0, 2, 0);
 }
 
 /**
@@ -688,6 +689,9 @@ new_fluid_synth(fluid_settings_t *settings)
     fluid_settings_getnum_float(settings, "synth.overflow.volume", &synth->overflow.volume);
     fluid_settings_getnum_float(settings, "synth.overflow.age", &synth->overflow.age);
     fluid_settings_getnum_float(settings, "synth.overflow.important", &synth->overflow.important);
+    
+    fluid_settings_getint(settings, "synth.note-cut", &i);
+    synth->msgs_note_cut_mode = i;
 
     /* register the callbacks */
     fluid_settings_callback_num(settings, "synth.gain",
@@ -930,7 +934,7 @@ new_fluid_synth(fluid_settings_t *settings)
     FLUID_MEMSET(synth->voice, 0, synth->nvoice * sizeof(*synth->voice));
     for(i = 0; i < synth->nvoice; i++)
     {
-        synth->voice[i] = new_fluid_voice(synth->eventhandler, synth->sample_rate);
+        synth->voice[i] = new_fluid_voice(synth->eventhandler, synth->sample_rate, synth->iir_sincos_table);
 
         if(synth->voice[i] == NULL)
         {
@@ -1001,6 +1005,7 @@ new_fluid_synth(fluid_settings_t *settings)
         synth->bank_select = FLUID_BANK_STYLE_MMA;
     }
 
+    fluid_iir_filter_init_table(synth->iir_sincos_table, synth->sample_rate);
     fluid_synth_process_event_queue(synth);
 
     /* FIXME */
@@ -2085,6 +2090,10 @@ fluid_synth_sysex(fluid_synth_t *synth, const char *data, int len,
             fluid_synth_api_enter(synth);
             synth->bank_select = FLUID_BANK_STYLE_GM;
             result = fluid_synth_system_reset_LOCAL(synth);
+            if(synth->verbose)
+            {
+                FLUID_LOG(FLUID_INFO, "Processing SysEX GM / GM2 System ON message, bank selection mode is now gm.");
+            }
             FLUID_API_RETURN(result);
         }
         return FLUID_OK;
@@ -2101,6 +2110,10 @@ fluid_synth_sysex(fluid_synth_t *synth, const char *data, int len,
         result = fluid_synth_sysex_gs_dt1(synth, data, len, response,
                                           response_len, avail_response,
                                           handled, dryrun);
+        if(synth->verbose)
+        {
+            FLUID_LOG(FLUID_INFO, "Processing SysEX GS DT1 message, bank selection mode might have been changed.");
+        }
         FLUID_API_RETURN(result);
     }
 
@@ -2114,6 +2127,10 @@ fluid_synth_sysex(fluid_synth_t *synth, const char *data, int len,
         result = fluid_synth_sysex_xg(synth, data, len, response,
                                       response_len, avail_response,
                                       handled, dryrun);
+        if(synth->verbose)
+        {
+            FLUID_LOG(FLUID_INFO, "Processing SysEX XG message, bank selection mode is now xg.");
+        }
         FLUID_API_RETURN(result);
     }
 
@@ -3106,14 +3123,7 @@ fluid_synth_program_change(fluid_synth_t *synth, int chan, int prognum)
 
     channel = synth->channel[chan];
 
-    if(channel->channel_type == CHANNEL_TYPE_DRUM)
-    {
-        banknum = DRUM_INST_BANK;
-    }
-    else
-    {
-        fluid_channel_get_sfont_bank_prog(channel, NULL, &banknum, NULL);
-    }
+    fluid_channel_get_sfont_bank_prog(channel, NULL, &banknum, NULL);
 
     if(synth->verbose)
     {
@@ -3139,9 +3149,13 @@ fluid_synth_program_change(fluid_synth_t *synth, int chan, int prognum)
             /* Percussion: Fallback to preset 0 in percussion bank */
             if(channel->channel_type == CHANNEL_TYPE_DRUM)
             {
-                subst_prog = 0;
                 subst_bank = DRUM_INST_BANK;
                 preset = fluid_synth_find_preset(synth, subst_bank, subst_prog);
+                if(!preset)
+                {
+                    subst_prog = 0;
+                    preset = fluid_synth_find_preset(synth, subst_bank, subst_prog);
+                }
             }
             /* Melodic instrument */
             else
@@ -3511,7 +3525,7 @@ fluid_synth_set_sample_rate_LOCAL(fluid_synth_t *synth, float sample_rate)
 
 /**
  * Set up an event to change the sample-rate of the synth during the next rendering call.
- * @warning This function is broken-by-design! Don't use it! Instead, specify the sample-rate when creating the synth.
+ * @warning This function is broken-by-design! Don't use it! Starting with fluidsynth 2.4.4 it's a no-op. Instead, specify the sample-rate when creating the synth.
  * @deprecated As of fluidsynth 2.1.0 this function has been deprecated.
  * Changing the sample-rate is generally not considered to be a real-time use-case, as it always produces some audible artifact ("click", "pop") on the dry sound and effects (because LFOs for chorus and reverb need to be reinitialized).
  * The sample-rate change may also require memory allocation deep down in the effect units.
@@ -3539,14 +3553,7 @@ fluid_synth_set_sample_rate_LOCAL(fluid_synth_t *synth, float sample_rate)
 void
 fluid_synth_set_sample_rate(fluid_synth_t *synth, float sample_rate)
 {
-    fluid_return_if_fail(synth != NULL);
-    fluid_synth_api_enter(synth);
-
-    fluid_synth_set_sample_rate_LOCAL(synth, sample_rate);
-
-    fluid_synth_update_mixer(synth, fluid_rvoice_mixer_set_samplerate,
-                             0, synth->sample_rate);
-    fluid_synth_api_exit(synth);
+    FLUID_LOG(FLUID_ERR, "fluid_synth_set_sample_rate() is no longer supported in this version of fluidsynth!");
 }
 
 // internal sample rate change function for the jack driver
@@ -3683,7 +3690,7 @@ fluid_synth_update_polyphony_LOCAL(fluid_synth_t *synth, int new_polyphony)
 
         for(i = synth->nvoice; i < new_polyphony; i++)
         {
-            synth->voice[i] = new_fluid_voice(synth->eventhandler, synth->sample_rate);
+            synth->voice[i] = new_fluid_voice(synth->eventhandler, synth->sample_rate, synth->iir_sincos_table);
 
             if(synth->voice[i] == NULL)
             {
@@ -5212,7 +5219,7 @@ fluid_synth_alloc_voice_LOCAL(fluid_synth_t *synth, fluid_sample_t *sample, int 
 
         FLUID_LOG(FLUID_INFO, "noteon\t%d\t%d\t%d\t%05d\t%.3f\t%.3f\t%.3f\t%d",
                   chan, key, vel, synth->storeid,
-                  (float) ticks / 44100.0f,
+                  (float) ticks / synth->sample_rate,
                   (fluid_curtime() - synth->start) / 1000.0f,
                   0.0f,
                   k);
@@ -6879,6 +6886,7 @@ fluid_synth_release_voice_on_same_note_LOCAL(fluid_synth_t *synth, int chan,
                 && (fluid_voice_get_id(voice) != synth->noteid))
         {
             enum fluid_midi_channel_type type = synth->channel[chan]->channel_type;
+            enum fluid_msgs_note_cut note_cut_mode = synth->msgs_note_cut_mode;
 
             /* Id of voices that was sustained by sostenuto */
             if(fluid_voice_is_sostenuto(voice))
@@ -6886,21 +6894,17 @@ fluid_synth_release_voice_on_same_note_LOCAL(fluid_synth_t *synth, int chan,
                 synth->storeid = fluid_voice_get_id(voice);
             }
 
-            switch(type)
+            if(note_cut_mode == FLUID_MSGS_DISABLED || (note_cut_mode == FLUID_MSGS_DRUM_CUT && type == CHANNEL_TYPE_MELODIC))
             {
-                case CHANNEL_TYPE_DRUM:
-                    /* release the voice, this should make riding hi-hats or snares sound more
-                     * realistic (Discussion #1196) */
-                    fluid_voice_off(voice);
-                    break;
-                case CHANNEL_TYPE_MELODIC:
-                    /* Force the voice into release stage except if pedaling (sostenuto or sustain) is active.
-                     * This gives a more realistic sound to pianos and possibly other instruments (see PR #905). */
-                    fluid_voice_noteoff(voice);
-                    break;
-                default:
-                    FLUID_LOG(FLUID_ERR, "This should never happen: unknown channel type %d", (int)type);
-                    break;
+                /* Force the voice into release stage except if pedaling (sostenuto or sustain) is active.
+                 * This gives a more realistic sound to pianos and possibly other instruments (see PR #905). */
+                fluid_voice_noteoff(voice);
+            }
+            else // i.e. if((note_cut_mode == FLUID_MSGS_ALL_CUT) || (note_cut_mode == FLUID_MSGS_DRUM_CUT && type == CHANNEL_TYPE_DRUM))
+            {
+                /* release the voice, this should make riding hi-hats or snares sound more realistic (Discussion #1196)
+                 * Note however, that this is not a SF2 compliant behavior, see #1466 */
+                fluid_voice_off(voice);
             }
         }
     }

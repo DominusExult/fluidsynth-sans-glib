@@ -33,8 +33,14 @@
 #include <systemd/sd-daemon.h>
 #endif
 
+#if SDL3_SUPPORT
+#include <SDL3/SDL.h>
+#define SDL_OK 1
+#endif
+
 #if SDL2_SUPPORT
 #include <SDL.h>
+#define SDL_OK 0
 #endif
 
 #if PIPEWIRE_SUPPORT
@@ -396,12 +402,12 @@ int main(int argc, char **argv)
     }
 #endif
 
-#if SDL2_SUPPORT
+#if SDL2_SUPPORT || SDL3_SUPPORT
     // Tell SDL that it shouldn't intercept signals, otherwise SIGINT and SIGTERM won't quit fluidsynth
     SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
-    if(SDL_Init(SDL_INIT_AUDIO) != 0)
+    if(SDL_Init(SDL_INIT_AUDIO) != SDL_OK)
     {
-        fprintf(stderr, "Warning: Unable to initialize SDL2 Audio: %s", SDL_GetError());
+        fprintf(stderr, "Warning: Unable to initialize SDL3 Audio: %s", SDL_GetError());
     }
     else
     {
@@ -1138,6 +1144,10 @@ cleanup:
 #endif
         delete_fluid_server(server);
     }
+    else if(with_server)
+    {
+        result = 1;
+    }
 
 #endif	/* NETWORK_SUPPORT */
 
@@ -1193,7 +1203,7 @@ void
 print_welcome(void)
 {
     printf("FluidSynth runtime version %s\n"
-           "Copyright (C) 2000-2024 Peter Hanappe and others.\n"
+           "Copyright (C) 2000-2025 Peter Hanappe and others.\n"
            "Distributed under the LGPL license.\n"
            "SoundFont(R) is a registered trademark of Creative Technology Ltd.\n\n",
            fluid_version_str());
@@ -1284,7 +1294,7 @@ print_help(fluid_settings_t *settings)
 #endif
     printf(" -q, --quiet\n"
            "    Do not print welcome message or other informational output\n"
-           "    (Windows only: also suppress all log messages lower than PANIC\n");
+           "    (Windows only: also suppress all log messages lower than PANIC)\n");
     printf(" -r, --sample-rate\n"
            "    Set the sample rate\n");
     printf(" -R, --reverb\n"

@@ -23,121 +23,6 @@
 #include "fluid_conv.h"
 
 
-static FLUID_INLINE void
-fluid_iir_filter_calculate_coefficients(fluid_iir_filter_t *iir_filter, fluid_real_t output_rate,
-                                        fluid_real_t *a1_out, fluid_real_t *a2_out,
-                                        fluid_real_t *b02_out, fluid_real_t *b1_out);
-
-
-/**
- * Applies a low- or high-pass filter with variable cutoff frequency and quality factor
- * for a given biquad transfer function:
- *          b0 + b1*z^-1 + b2*z^-2
- *  H(z) = ------------------------
- *          a0 + a1*z^-1 + a2*z^-2
- *
- * Also modifies filter state accordingly.
- * @param iir_filter Filter parameter
- * @param dsp_buf Pointer to the synthesized audio data
- * @param count Count of samples in dsp_buf
- */
-/*
- * Variable description:
- * - dsp_a1, dsp_a2: Filter coefficients for the the previously filtered output signal
- * - dsp_b0, dsp_b1, dsp_b2: Filter coefficients for input signal
- * - coefficients normalized to a0
- *
- * A couple of variables are used internally, their results are discarded:
- * - dsp_i: Index through the output buffer
- * - dsp_centernode: delay line for the IIR filter
- * - dsp_hist1: same
- * - dsp_hist2: same
- */
-void
-fluid_iir_filter_apply(fluid_iir_filter_t *iir_filter,
-                       fluid_real_t *dsp_buf, int count, fluid_real_t output_rate)
-{
-    if(iir_filter->type == FLUID_IIR_DISABLED || FLUID_FABS(iir_filter->last_q) <= 0.001)
-    {
-        return;
-    }
-    else
-    {
-        /* IIR filter sample history */
-        fluid_real_t dsp_hist1 = iir_filter->hist1;
-        fluid_real_t dsp_hist2 = iir_filter->hist2;
-
-        /* IIR filter coefficients */
-        fluid_real_t dsp_a1 = iir_filter->a1;
-        fluid_real_t dsp_a2 = iir_filter->a2;
-        fluid_real_t dsp_b02 = iir_filter->b02;
-        fluid_real_t dsp_b1 = iir_filter->b1;
-        
-        int fres_incr_count = iir_filter->fres_incr_count;
-        int q_incr_count = iir_filter->q_incr_count;
-
-        fluid_real_t dsp_centernode;
-        int dsp_i;
-
-        /* filter (implement the voice filter according to SoundFont standard) */
-
-        /* Check for denormal number (too close to zero). */
-        if(FLUID_FABS(dsp_hist1) < 1e-20f)
-        {
-            dsp_hist1 = 0.0f;    /* FIXME JMG - Is this even needed? */
-        }
-
-        /* Two versions of the filter loop. One, while the filter is
-        * changing towards its new setting. The other, if the filter
-        * doesn't change.
-        */
-
-        for(dsp_i = 0; dsp_i < count; dsp_i++)
-        {
-            /* The filter is implemented in Direct-II form. */
-            dsp_centernode = dsp_buf[dsp_i] - dsp_a1 * dsp_hist1 - dsp_a2 * dsp_hist2;
-            dsp_buf[dsp_i] = dsp_b02 * (dsp_centernode + dsp_hist2) + dsp_b1 * dsp_hist1;
-            dsp_hist2 = dsp_hist1;
-            dsp_hist1 = dsp_centernode;
-            /* Alternatively, it could be implemented in Transposed Direct Form II */
-            // fluid_real_t dsp_input = dsp_buf[dsp_i];
-            // dsp_buf[dsp_i] = dsp_b02 * dsp_input + dsp_hist1;
-            // dsp_hist1 = dsp_b1 * dsp_input - dsp_a1 * dsp_buf[dsp_i] + dsp_hist2;
-            // dsp_hist2 = dsp_b02 * dsp_input - dsp_a2 * dsp_buf[dsp_i];
-            
-            if(fres_incr_count > 0 || q_incr_count > 0)
-            {
-                if(fres_incr_count > 0)
-                {
-                    --fres_incr_count;
-                    iir_filter->last_fres += iir_filter->fres_incr;
-                }
-                if(q_incr_count > 0)
-                {
-                    --q_incr_count;
-                    iir_filter->last_q += iir_filter->q_incr;
-                }
-                
-                LOG_FILTER("last_fres: %.2f Hz  |  target_fres: %.2f Hz  |---|  last_q: %.4f  |  target_q: %.4f", iir_filter->last_fres, iir_filter->target_fres, iir_filter->last_q, iir_filter->target_q);
-                
-                fluid_iir_filter_calculate_coefficients(iir_filter, output_rate, &dsp_a1, &dsp_a2, &dsp_b02, &dsp_b1);
-            }
-        }
-
-        iir_filter->hist1 = dsp_hist1;
-        iir_filter->hist2 = dsp_hist2;
-        iir_filter->a1 = dsp_a1;
-        iir_filter->a2 = dsp_a2;
-        iir_filter->b02 = dsp_b02;
-        iir_filter->b1 = dsp_b1;
-        
-        iir_filter->fres_incr_count = fres_incr_count;
-        iir_filter->q_incr_count = q_incr_count;
-
-        fluid_check_fpe("voice_filter");
-    }
-}
-
 DECLARE_FLUID_RVOICE_FUNCTION(fluid_iir_filter_init)
 {
     fluid_iir_filter_t *iir_filter = obj;
@@ -161,6 +46,8 @@ fluid_iir_filter_reset(fluid_iir_filter_t *iir_filter)
     iir_filter->last_fres = -1.;
     iir_filter->last_q = 0;
     iir_filter->filter_startup = 1;
+    iir_filter->amp = 0;
+    iir_filter->amp_incr = 0;
 }
 
 DECLARE_FLUID_RVOICE_FUNCTION(fluid_iir_filter_set_fres)
@@ -230,17 +117,25 @@ DECLARE_FLUID_RVOICE_FUNCTION(fluid_iir_filter_set_q)
     if(iir_filter->filter_startup)
     {
         iir_filter->last_q = q;
+        iir_filter->q_incr_count = 0;
     }
     else
     {
         static const fluid_real_t q_incr_count = FLUID_BUFSIZE;
+        // Q must be at least Q_MIN, otherwise fluid_iir_filter_apply would never be entered
+        if(q >= Q_MIN && iir_filter->last_q < Q_MIN)
+        {
+            iir_filter->last_q = Q_MIN;
+        }
         iir_filter->q_incr = (q - iir_filter->last_q) / (q_incr_count);
         iir_filter->q_incr_count = q_incr_count;
+        LOG_FILTER("%f - %f / %f = %f", q , iir_filter->last_q, q_incr_count, iir_filter->q_incr);
     }
 #ifdef DBG_FILTER
     iir_filter->target_q = q;
 #endif
 }
+<<<<<<< HEAD
 
 static FLUID_INLINE void
 fluid_iir_filter_calculate_coefficients(fluid_iir_filter_t *iir_filter,
