@@ -1106,7 +1106,14 @@ fluid_timer_run(void *data)
         long cur_time = fluid_curtime();
         long elapsed_long = cur_time - start;
         long delay;
-        
+        unsigned int elapsed;
+        long result;
+        unsigned int cont;
+        long abs_time;
+        long cur_elapsed;
+        cur_time = fluid_curtime();
+        elapsed_long = cur_time - start;
+
         if (elapsed_long < 0 || elapsed_long > UINT_MAX)
         {
             FLUID_LOG(FLUID_WARN, "Timer elapsed time out of range");
@@ -1114,9 +1121,8 @@ fluid_timer_run(void *data)
             break;
         }
         
-        unsigned int elapsed = (unsigned int)elapsed_long;
-        long result = (*timer->callback)(timer->data, elapsed);
-        unsigned int cont;
+        elapsed = (unsigned int)elapsed_long;
+        result = (*timer->callback)(timer->data, elapsed);
 
         if (result < 0 || result > UINT_MAX)
         {
@@ -1137,8 +1143,8 @@ fluid_timer_run(void *data)
 
         /* to avoid incremental time errors, calculate the delay between
            two callbacks bringing in the "absolute" time (count * timer->msec) */
-        long abs_time = (long)(count * timer->msec);
-        long cur_elapsed = fluid_curtime() - start;
+        abs_time = (long)(count * timer->msec);
+        cur_elapsed = fluid_curtime() - start;
         delay = abs_time - cur_elapsed;
 
         if(delay > 0)
@@ -1436,13 +1442,7 @@ fluid_ostream_printf(fluid_ostream_t out, const char *format, ...)
     buf[4095] = 0;
 
 #ifndef _WIN32
-    ssize_t bytes_written = write(out, buf, FLUID_STRLEN(buf));
-    if (bytes_written < INT_MIN || bytes_written > INT_MAX)
-    {
-        FLUID_LOG(FLUID_ERR, "Write result out of range");
-        return FLUID_FAILED;
-    }
-    return (int)bytes_written;
+    return write(out, buf, FLUID_STRLEN(buf));
 #else
     {
         int retval;

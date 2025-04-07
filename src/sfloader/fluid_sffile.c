@@ -601,12 +601,7 @@ static int load_header(SFData *sf)
         return FALSE;
     }
 
-    fluid_long_long_t pos = sf->fcbs->ftell(sf->sffd);
-    if (pos < 0 || pos > UINT_MAX) {
-        FLUID_LOG(FLUID_ERR, "File position out of range");
-        return FLUID_FAILED;
-    }
-    sf->hydrapos = (unsigned int)pos;
+    sf->hydrapos = sf->fcbs->ftell(sf->sffd);
     sf->hydrasize = chunk.size;
 
     return TRUE;
@@ -795,12 +790,7 @@ static int process_sdta(SFData *sf, unsigned int size)
     }
 
     /* sample data follows */
-    fluid_long_long_t pos = sf->fcbs->ftell(sf->sffd);
-    if (pos < 0 || pos > UINT_MAX) {
-        FLUID_LOG(FLUID_ERR, "Sample position out of range");
-        return FLUID_FAILED;
-    }
-    sf->samplepos = (unsigned int)pos;
+    sf->samplepos = sf->fcbs->ftell(sf->sffd);
 
     /* used to check validity of sample headers */
     sf->samplesize = chunk.size;
@@ -843,12 +833,7 @@ static int process_sdta(SFData *sf, unsigned int size)
                 }
 
                 /* sample data24 follows */
-                fluid_long_long_t pos = sf->fcbs->ftell(sf->sffd);
-                if (pos < 0 || pos > UINT_MAX) {
-                    FLUID_LOG(FLUID_ERR, "24-bit sample position out of range");
-                    return FLUID_FAILED;
-                }
-                sf->sample24pos = (unsigned int)pos;
+                sf->sample24pos = sf->fcbs->ftell(sf->sffd);
                 sf->sample24size = sm24size;
             }
         }
@@ -2270,7 +2255,7 @@ static int fluid_sffile_read_wav(SFData *sf, unsigned int start, unsigned int en
     fluid_rec_mutex_unlock(sf->mtx);
 
     /* If this machine is big endian, byte swap the 16 bit samples */
-#if FLUID_IS_BIG_ENDIAN
+    if(FLUID_IS_BIG_ENDIAN)
     {
         unsigned int i;
 
@@ -2279,7 +2264,6 @@ static int fluid_sffile_read_wav(SFData *sf, unsigned int start, unsigned int en
             loaded_data[i] = FLUID_LE16TOH(loaded_data[i]);
         }
     }
-#endif
 
     *data = loaded_data;
 

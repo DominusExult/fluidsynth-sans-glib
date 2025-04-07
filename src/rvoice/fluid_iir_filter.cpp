@@ -21,7 +21,8 @@
 #include "fluid_iir_filter.h"
 #include "fluid_conv.h"
 
-#include <algorithm>
+// commented in fluid_sans_glib
+//#include <algorithm>
 #include <cmath>
 
 
