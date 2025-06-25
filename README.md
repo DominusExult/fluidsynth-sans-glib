@@ -1,3 +1,8 @@
+# Retired because of obsolence
+
+Current Fluidsynth git and the upcoming 2.5 version of Fluidsynth supports building without the need of GLib, hence this fork of a fork is no longer needed, will be retired and will receive no further updates.
+
+
 This is a merge of [chirs241097](https://github.com/chirs241097)'s patch with upstream FluidSynth. I have only tested this with a build for macOS and playing back with [Exult](https://github.com/exult/exult).
 Original content of the patch below:
 
